@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { CartItem } from '../common/cart-item';
-import { Subject } from 'rxjs';
+import { Subject, BehaviorSubject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -9,9 +9,9 @@ export class CartService {
 
   cartItems: CartItem[] = [];
 
-  totalPrice: Subject<number> = new Subject<number>();
+  totalPrice: Subject<number> = new BehaviorSubject<number>(0);
 
-  totalQuantity: Subject<number> = new Subject<number>();
+  totalQuantity: Subject<number> = new BehaviorSubject<number>(0);
 
   constructor() { }
 
@@ -22,7 +22,9 @@ export class CartService {
 
     if(this.cartItems.length>0){
 
-      existingCartItem = this.cartItems.find((item)=>{item.id===theCartItem.id});
+      existingCartItem = this.cartItems.find((item)=>{return item.id===theCartItem.id});
+      console.log('t8');
+      console.log(existingCartItem);
       alreadyExistsInCart = (existingCartItem!=undefined);
     }
     if(alreadyExistsInCart){
@@ -48,5 +50,24 @@ export class CartService {
     console.log(totalPriceValue+ '  '+ totalQuantityValue);
     this.totalPrice.next(totalPriceValue);
     this.totalQuantity.next(totalQuantityValue);
+  }
+
+  decrementQuantity(theCartItem: CartItem) {
+    theCartItem.quantity--;
+
+    if(theCartItem.quantity === 0){
+      this.remove(theCartItem);
+    }else{
+      this.computeCartTotal();
+    }
+  }
+  remove(theCartItem: CartItem) {
+    const itemIndex = this.cartItems.findIndex(tempCartItem => tempCartItem.id === theCartItem.id);
+
+    if(itemIndex > -1){
+      this.cartItems.splice(itemIndex, 1);
+
+      this.computeCartTotal();
+    }
   }
 }
