@@ -10,6 +10,11 @@ import { Country } from 'src/app/common/country';
 import { State } from 'src/app/common/state';
 import { Luv2ShopValidators } from 'src/app/validators/luv2-shop-validators';
 import { CartService } from 'src/app/services/cart.service';
+import { CheckoutService } from 'src/app/services/checkout.service';
+import { Router } from '@angular/router';
+import { Order } from 'src/app/common/order';
+import { OrderItem } from 'src/app/common/order-item';
+import { Purchase } from 'src/app/common/purchase';
 
 @Component({
   selector: 'app-checkout',
@@ -33,11 +38,12 @@ export class CheckoutComponent implements OnInit {
   constructor(
     private formBuilder: FormBuilder,
     private luv2ShopFormService: Luv2ShopFormService,
-    private cartService:CartService,
+    private cartService: CartService,
+    private checkoutService: CheckoutService,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
-
     this.reviewCartDetails();
 
     this.checkoutFormGroup = this.formBuilder.group({
@@ -68,12 +74,8 @@ export class CheckoutComponent implements OnInit {
           Validators.minLength(2),
           Luv2ShopValidators.notOnlyWhitespace,
         ]),
-        state: new FormControl('', [
-          Validators.required,
-        ]),
-        country: new FormControl('', [
-          Validators.required,
-        ]),
+        state: new FormControl('', [Validators.required]),
+        country: new FormControl('', [Validators.required]),
         zipCode: new FormControl('', [
           Validators.required,
           Validators.minLength(2),
@@ -91,12 +93,8 @@ export class CheckoutComponent implements OnInit {
           Validators.minLength(2),
           Luv2ShopValidators.notOnlyWhitespace,
         ]),
-        state: new FormControl('', [
-          Validators.required,
-        ]),
-        country: new FormControl('', [
-          Validators.required,
-        ]),
+        state: new FormControl('', [Validators.required]),
+        country: new FormControl('', [Validators.required]),
         zipCode: new FormControl('', [
           Validators.required,
           Validators.minLength(2),
@@ -104,9 +102,7 @@ export class CheckoutComponent implements OnInit {
         ]),
       }),
       creditCard: this.formBuilder.group({
-        cardType: new FormControl('', [
-          Validators.required,
-        ]),
+        cardType: new FormControl('', [Validators.required]),
         nameOnCard: new FormControl('', [
           Validators.required,
           Validators.minLength(2),
@@ -158,7 +154,84 @@ export class CheckoutComponent implements OnInit {
     console.log(this.checkoutFormGroup.get('customer')?.value);
     if (this.checkoutFormGroup.invalid) {
       this.checkoutFormGroup.markAllAsTouched();
+      return;
     }
+
+    let order = new Order();
+    order.totalPrice = this.totalPrice;
+    order.totalQuantity = this.totalQuantity;
+
+    const cartItems = this.cartService.cartItems;
+
+    let orderItem: OrderItem[] = cartItems.map(
+      (tempCartItem) => new OrderItem(tempCartItem)
+    );
+
+    let purchase = new Purchase();
+
+    purchase.customer = this.checkoutFormGroup.controls['customer'].value;
+
+    purchase.shippingAddress = this.checkoutFormGroup.controls[
+      'shippingAddress'
+    ].value;
+    const shippingState: State = JSON.parse(
+      JSON.stringify(
+        this.checkoutFormGroup.controls['shippingAddress'].value.state
+      )
+    );
+    const shippingCountry: Country = JSON.parse(
+      JSON.stringify(
+        this.checkoutFormGroup.controls['shippingAddress'].value.country
+      )
+    );
+    if (purchase.shippingAddress) {
+      purchase.shippingAddress.state = shippingState.name;
+      purchase.shippingAddress.country = shippingCountry.name;
+    }
+
+    purchase.billingAddress = this.checkoutFormGroup.controls[
+      'billingAddress'
+    ].value;
+    const billingState: State = JSON.parse(
+      JSON.stringify(
+        this.checkoutFormGroup.controls['billingAddress'].value.state
+      )
+    );
+    const billingCountry: Country = JSON.parse(
+      JSON.stringify(
+        this.checkoutFormGroup.controls['billingAddress'].value.country
+      )
+    );
+    if (purchase.billingAddress) {
+      purchase.billingAddress.state = billingState.name;
+      purchase.billingAddress.country = billingCountry.name;
+    }
+
+    purchase.order = order;
+    purchase.orderItems = orderItem;
+
+    this.checkoutService.placeOrder(purchase).subscribe(
+      {
+        next: response =>{
+        alert(`Your order has been recevied \n Order tracking number: ${response.orderTrackingNumber}`);
+        this.resetCart()
+
+        },
+        error: err=>{
+          alert(`There was an eror: ${err.message}`);
+        }
+      }
+    );
+  }
+
+  resetCart() {
+    this.cartService.cartItems = [];
+    this.cartService.totalPrice.next(0);
+    this.cartService.totalQuantity.next(0);
+
+    this.checkoutFormGroup.reset();
+
+    this.router.navigateByUrl("/products");
   }
 
   get firstName() {
@@ -170,7 +243,7 @@ export class CheckoutComponent implements OnInit {
   get email() {
     return this.checkoutFormGroup.get('customer.email');
   }
-  
+
   get shippingAddressStreet() {
     return this.checkoutFormGroup.get('shippingAddress.street');
   }
@@ -211,11 +284,18 @@ export class CheckoutComponent implements OnInit {
     return this.checkoutFormGroup.get('billingAddress.country');
   }
 
-  get creditCardType() { return this.checkoutFormGroup.get('creditCard.cardType'); }
-  get creditCardNameOnCard() { return this.checkoutFormGroup.get('creditCard.nameOnCard'); }
-  get creditCardNumber() { return this.checkoutFormGroup.get('creditCard.cardNumber'); }
-  get creditCardSecurityCode() { return this.checkoutFormGroup.get('creditCard.securityCode'); }
-
+  get creditCardType() {
+    return this.checkoutFormGroup.get('creditCard.cardType');
+  }
+  get creditCardNameOnCard() {
+    return this.checkoutFormGroup.get('creditCard.nameOnCard');
+  }
+  get creditCardNumber() {
+    return this.checkoutFormGroup.get('creditCard.cardNumber');
+  }
+  get creditCardSecurityCode() {
+    return this.checkoutFormGroup.get('creditCard.securityCode');
+  }
 
   copyShippingAddressToBillingAddress(event: Event) {
     if ((<HTMLInputElement>event.target).checked) {
