@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CartItem } from '../common/cart-item';
 import { Subject, BehaviorSubject } from 'rxjs';
+import { JsonPipe } from '@angular/common';
 
 @Injectable({
   providedIn: 'root'
@@ -13,7 +14,16 @@ export class CartService {
 
   totalQuantity: Subject<number> = new BehaviorSubject<number>(0);
 
-  constructor() { }
+  storage: Storage = sessionStorage;
+
+  constructor() {
+    let data = JSON.parse(this.storage.getItem('cartItems') || JSON.stringify({}));
+    if(data.length !=0){
+      this.cartItems = data;
+      this.computeCartTotal;
+
+    }
+   }
 
   addToCart(theCartItem: CartItem){
     console.log("t1");
@@ -37,6 +47,10 @@ export class CartService {
     this.computeCartTotal();
   }
 
+  persistCartItems(){
+    this.storage.setItem('cartItems',JSON.stringify(this.cartItems));
+  }
+
   computeCartTotal(){
 
     console.log(this.cartItems);
@@ -50,6 +64,8 @@ export class CartService {
     console.log(totalPriceValue+ '  '+ totalQuantityValue);
     this.totalPrice.next(totalPriceValue);
     this.totalQuantity.next(totalQuantityValue);
+
+    this.persistCartItems();
   }
 
   decrementQuantity(theCartItem: CartItem) {
