@@ -18,7 +18,9 @@ export class CartService {
 
   constructor() {
     let data = JSON.parse(this.storage.getItem('cartItems') || JSON.stringify({}));
-    if(data.length !=0){
+    console.log('fuck');
+    console.log(data.length);
+    if(data.length >0){
       this.cartItems = data;
       this.computeCartTotal;
 
